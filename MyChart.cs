@@ -15,25 +15,27 @@ namespace EcgChart
 	/// </summary>
 	public class MyChart
 	{
-		private ZedGraphControl defaultGraph;
-		private int pointCount;
-		private string chartTitle = "ECG";
+		ZedGraphControl graph;
+		GraphPane pane;
+		int pointCount;
+		string chartTitle = "ECG";
 		
 		public MyChart(ZedGraphControl g)
 		{
-			defaultGraph = g; 
+			graph = g; 
+			pane = graph.GraphPane; 
 			pointCount = 0; 
 			initGraph();
 		}
-		private void initGraph(ZedGraphControl graph=null){
-			graph=(graph!=null)?graph:defaultGraph;
-			GraphPane pane = graph.GraphPane;
+		private void initGraph(){
 			pane.CurveList.Clear();
 			pane.Title.Text = chartTitle;
 			pane.YAxis.Title.IsVisible = false;
 			pane.XAxis.Title.Text="Time";
 //			pane.XAxis.Title.IsVisible = false;
-//			pane.XAxis.Scale.Min = 0;
+			pane.XAxis.Scale.Min = 0;
+			graph.RestoreScale(pane); // restore to default all zooming, etc.
+//			pane.XAxis.AxisGap
 			LineItem myCurve = pane.AddCurve (chartTitle, null, Color.Blue, SymbolType.None);
 			graph.IsEnableHZoom = true;
 			graph.IsEnableVZoom = false;
@@ -45,7 +47,6 @@ namespace EcgChart
 		{
 			label = (label!=null)?label:"ECG";
 			Color color = Color.Blue;
-			GraphPane pane = defaultGraph.GraphPane; 
 			
 			if(append==false) pane.CurveList.Clear (); 
 			else color=Color.Maroon;
@@ -65,12 +66,13 @@ namespace EcgChart
 		}
 		private void Update() 
 		{
-			defaultGraph.AxisChange ();
-			defaultGraph.Invalidate ();
+			this.graph.AxisChange ();
+			this.graph.Invalidate ();
 		}
-		public void AddPoint(double val) 
+		public void AddPoint(double val,int curveIndex=0) 
 		{
-			
+			this.pane.CurveList[curveIndex].AddPoint(pointCount++,val);
+			this.Update();
 		}
 	}
 }

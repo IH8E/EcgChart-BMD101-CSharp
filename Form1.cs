@@ -56,7 +56,7 @@ namespace EcgChart
 					listBox1.Items.Add("Port opened: " + _sPort.PortName);
 					button1.Text=closeButtonText;
 				}
-				catch(Exception ex)
+				catch
 				{
 					listBox1.Items.Add("Port unavaliable: " + _sPort.PortName);
 				}
@@ -147,7 +147,6 @@ namespace EcgChart
 		void initComboPorts()
 		{
 			string[] ports = SerialPort.GetPortNames();
-//			Array.Reverse(ports);
 			comboBox1.Items.Clear();
 			comboBox1.Items.AddRange(ports);
 			comboBox1.Text = defPort;
@@ -168,19 +167,10 @@ namespace EcgChart
 				port.DataReceived += new SerialDataReceivedEventHandler(sp_DataReceived);
 				return port;
 			}
-			catch(Exception e) {
+			catch
+			{
 				return null;
 			}
-		}
-		public static byte[] FromHex(string hex)
-		{
-			hex = hex.Replace("-", "");
-			byte[] raw = new byte[hex.Length / 2];
-			for (int i = 0; i < raw.Length; i++)
-			{
-				raw[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
-			}
-			return raw;
 		}
 		double hexToSigned(double vd) {
 			int v = (int)vd;
