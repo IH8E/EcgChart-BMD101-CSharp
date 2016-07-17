@@ -82,6 +82,7 @@
   <ItemGroup>
     <Compile Include="ComPort.cs" />
     <Compile Include="FileTools.cs" />
+    <Compile Include="IncomingData.cs" />
     <Compile Include="MyChart.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>

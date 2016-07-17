@@ -71,5 +71,31 @@ namespace EcgChart
 				sr.Close();
 			return v; 
 		}
+		public static string GetFileName(string f)
+		{
+			return Path.GetFileNameWithoutExtension(f);
+		}
+		public static bool SaveListTo(string fileName, List<double> text)
+		{
+			try 
+			{
+				using (StreamWriter sw = File.AppendText(fileName)) 
+				{
+					foreach (var v in text) 
+					{
+						sw.WriteLine(v);
+					}
+				}
+				return true;
+			}
+			catch
+			{
+				return false;
+			}	
+		}
+		public static void WriteTo(string file,string text) 
+		{
+			File.WriteAllText(file,text);
+		}
 	}
 }

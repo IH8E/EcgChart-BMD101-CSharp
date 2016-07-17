@@ -4,8 +4,6 @@ using System.IO.Ports;
 using System.Linq;
 using System.Windows.Forms;
 
-using ZedGraph;
-
 namespace EcgChart
 {
 	public partial class Form1 : Form
@@ -16,9 +14,9 @@ namespace EcgChart
 		string closeButtonText;
 		string logPath;
 		List<double> allValues = new List<double>();
-		ZedGraphControl defaultGraph;
 		LogFile log; 
 		MyChart myChart;
+		ComPort myPort;
 		public Form1()
 		{
 			InitializeComponent();
@@ -26,7 +24,7 @@ namespace EcgChart
 			openButtonText = "Открыть";
 			closeButtonText = "Закрыть";
 			logPath = @".\log.txt";
-			defaultGraph = zedGraphControl1;
+			myPort = new ComPort();
 			initAll();
 		}
 		
@@ -53,10 +51,8 @@ namespace EcgChart
 				catch
 				{
 					listBox1.Items.Add("Port unavaliable: " + _sPort.PortName);
-				}
-				
+				}	
 			}
-			//            _sPort.Open();
 		}
 
 		void sp_DataReceived(object sender, SerialDataReceivedEventArgs e)
@@ -65,83 +61,31 @@ namespace EcgChart
 			int bytes = _sPort.BytesToRead;
 			byte[] buffer = new byte[bytes];
 			_sPort.Read(buffer, 0, bytes);
+			
 			BeginInvoke(new SetTextDeleg(si_DataReceived),
 			                 new object[] {buffer});
 		}
 
-		private delegate void SetTextDeleg(byte[] text);
-		public  IEnumerable<double> parseBytes(byte[] data)
-		{
-			int ByteLength = 6;
-			List<string> cByte = new List<string>();
-			for (int i=0, length=data.Length; i<length; i++) 
-			{
-				if(data[i]==170) {
-					if(i<=length-ByteLength && data[i+1]==170) {							
-						if (cByte.Count==ByteLength) {
-							yield return parseByte(cByte);
-						}
-						cByte.Clear();
-					}
-				}
-				else 
-				{
-					cByte.Add(data[i].ToString());
-				}
-			}
-		}
-		double parseByte(List<string> cByte)
-		{
-//			if(!checkSum(cByte)) return;
-			double v1 = double.Parse(cByte[3]);
-			double v2 = double.Parse(cByte[4]);
-			double v = v1*16*16+v2;
-			v = hexToSigned(v);
-			return v;
-		}
+		public delegate void SetTextDeleg(byte[] text);
+		
 		public void si_DataReceived(byte[] data)
 		{
 			List<double> values = new List<double>();
-			foreach(double v in parseBytes(data))
+			foreach(double v in IncomingData.parseBytes(data))
 			{
 				values.Add(v);
 				myChart.AddPoint(v);
 			}
 			allValues.AddRange(values);
-			
 		}
 
 		void Form1_FormClosing(object sender, FormClosingEventArgs e)
 		{
 			_sPort.Close();
-
-		}
-		
-		void testCheckSum()
-		{
-			List<int> foo = new List<int>();
-			foo.Add(128);
-			foo.Add(2);
-			foo.Add(9);
-			foo.Add(82);
-			foo.Add(34);
-			string msg = checkSum(foo)?"ok":"nope";
-			MessageBox.Show(msg);
-		}
-		bool checkSum(List<int> arr)
-		{
-			int length, checkValue, checksum;
-			length = arr.Count;
-			if(length<2) return false;
-			checkValue = arr[length-1]; arr.RemoveAt(length-1); //Array.pop();
-			checksum = arr.Sum();
-			checksum &= 0xFF;
-			checksum = ~checksum & 0xFF;
-			return checksum==checkValue;
 		}
 		void initComboPorts()
 		{
-			string[] ports = ComPort.GetPorts();//SerialPort.GetPortNames();
+			string[] ports = ComPort.GetPorts();
 			comboBox1.Items.Clear();
 			comboBox1.Items.AddRange(ports);
 			comboBox1.Text = defPort;
@@ -159,13 +103,7 @@ namespace EcgChart
 				return null;
 			}
 		}
-		double hexToSigned(double vd) {
-			int v = (int)vd;
-			if ((v & 0x8000) > 0) {
-				v = v - 0x10000;
-			}
-			return v;
-		}
+		
 		void ComboBox1SelectedIndexChanged(object sender, EventArgs e)
 		{
 			if(_sPort.IsOpen) {
@@ -186,17 +124,7 @@ namespace EcgChart
 			listBox1.DataSource=null;	
 			listBox1.Items.Clear();
 			log = new LogFile(logPath);
-			myChart = new MyChart(defaultGraph);
-		}
-				
-		PointPairList listToPointPairList(List<double> val)
-		{
-			PointPairList result = new PointPairList ();
-			int l=val.Count;
-			for(int i=0; i<l;i++) {
-				result.Add(i,val[i]);
-			}
-			return result;
+			myChart = new MyChart(zedGraphControl1);
 		}
 		
 		void fileOpenClick(object sender, EventArgs e)
@@ -214,7 +142,8 @@ namespace EcgChart
 			if(fileName==null) return; 
 			List<double>v = FileTools.LoadListFromFile(fileName);
 			listBox1.DataSource = v;
-			myChart.DrawGraph(v,"loaded",true);
+			string f = FileTools.GetFileName(fileName);
+			myChart.DrawGraph(v,f,true);
         }
         
         void SaveFileClick(object sender, EventArgs e)

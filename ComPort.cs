@@ -9,9 +9,14 @@ namespace EcgChart
 	{
 		const string defaultPort = "com2";
 		static int baud = 57600;
-		SerialPort _sPort;
-		public ComPort(string PortName)
+		public SerialPort _sPort;
+		public delegate void PassControl(object sender);
+	    // Create instance (null)
+	    public PassControl passControl;
+	    
+		public ComPort(string PortName=null)
 		{
+			PortName=PortName??defaultPort;
 			_sPort=initPort(PortName);
 		}
 		static public string[] GetPorts()
@@ -37,10 +42,14 @@ namespace EcgChart
 			int bytes = _sPort.BytesToRead;
 			byte[] buffer = new byte[bytes];
 			_sPort.Read(buffer, 0, bytes);
-		
-//			BeginInvoke(new SetTextDeleg(si_DataReceived),
+//			System.Windows.Forms.Control.BeginInvoke(new SetTextDeleg(si_DataReceived),
+//			                 new object[] {buffer});
+//			Form1.si_DataReceived
+//			BeginInvoke(new Form1.SetTextDeleg(Form1.si_DataReceived),
 //			                 new object[] {buffer});
 		}
+		public delegate void SerialDataReceivedEventHandler(object sender, SerialDataReceivedEventArgs e);
+		
 		delegate void SetTextDeleg(byte[] text);
 	}
 }
