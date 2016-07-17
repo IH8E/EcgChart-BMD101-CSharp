@@ -1,10 +1,4 @@
-﻿/*
- * Сделано в SharpDevelop.
- * Пользователь: IH8E
- * Дата: 14.07.2016
- * Время: 9:46
- */
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 namespace EcgChart
@@ -26,7 +20,7 @@ namespace EcgChart
 		}
 		bool writeLogTo(string fileName, List<double> text)
 		{
-			fileName = (fileName!=null)?fileName:logPath;
+			fileName = fileName ?? logPath;
 			try 
 			{
 				using (StreamWriter sw = File.AppendText(fileName)) 

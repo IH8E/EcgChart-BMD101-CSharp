@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.IO.Ports;
 using System.Linq;
 using System.Windows.Forms;
@@ -12,17 +11,14 @@ namespace EcgChart
 	public partial class Form1 : Form
 	{
 		SerialPort _sPort;
-		private string defPort;
-		private int pointCount;
-		private string openButtonText;
-		private string closeButtonText;
+		string defPort;
+		string openButtonText;
+		string closeButtonText;
 		string logPath;
-		List<double> values0 = new List<double>();
 		List<double> allValues = new List<double>();
 		ZedGraphControl defaultGraph;
 		LogFile log; 
 		MyChart myChart;
-		string defaultFilterForFiles = "Текстовые файлы (*.txt)|*.txt";
 		public Form1()
 		{
 			InitializeComponent();
@@ -32,7 +28,6 @@ namespace EcgChart
 			logPath = @".\log.txt";
 			defaultGraph = zedGraphControl1;
 			initAll();
-		
 		}
 		
 		void button1_Click(object sender, EventArgs e)
@@ -40,7 +35,6 @@ namespace EcgChart
 			listBox1.DataSource=null;
 			if(_sPort.IsOpen)
 			{
-				
 				_sPort.Close();
 				listBox1.Items.Add("Port closed: " + _sPort.PortName);
 				log.saveData(allValues);
@@ -63,7 +57,6 @@ namespace EcgChart
 				
 			}
 			//            _sPort.Open();
-			
 		}
 
 		void sp_DataReceived(object sender, SerialDataReceivedEventArgs e)
@@ -72,45 +65,47 @@ namespace EcgChart
 			int bytes = _sPort.BytesToRead;
 			byte[] buffer = new byte[bytes];
 			_sPort.Read(buffer, 0, bytes);
-			this.BeginInvoke(new SetTextDeleg(si_DataReceived),
+			BeginInvoke(new SetTextDeleg(si_DataReceived),
 			                 new object[] {buffer});
 		}
 
 		private delegate void SetTextDeleg(byte[] text);
-		
-		void si_DataReceived(byte[] data)
+		public  IEnumerable<double> parseBytes(byte[] data)
 		{
-			GraphPane pane = zedGraphControl1.GraphPane;
-			
-			
-			List<double> values = new List<double>();
-			try {
-				
-				List<string> cByte = new List<string>();
-				for (int i=0, length=data.Length; i<length; i++) {
-					if(data[i]==170) {
-						if(data[i+1]==170) {							
-							if (cByte.Count==6 ) {
-								double v1 = double.Parse(cByte[3]);
-								double v2 = double.Parse(cByte[4]);
-								double v = v1*16*16+v2;
-								v = hexToSigned(v);
-								values.Add(v);
-								pane.CurveList[0].AddPoint(pointCount,v);
-								zedGraphControl1.AxisChange ();
-								zedGraphControl1.Invalidate ();
-								pointCount++;
-							}
-							cByte.Clear();
+			int ByteLength = 6;
+			List<string> cByte = new List<string>();
+			for (int i=0, length=data.Length; i<length; i++) 
+			{
+				if(data[i]==170) {
+					if(i<=length-ByteLength && data[i+1]==170) {							
+						if (cByte.Count==ByteLength) {
+							yield return parseByte(cByte);
 						}
-					}
-					else {
-						cByte.Add(data[i].ToString());
+						cByte.Clear();
 					}
 				}
+				else 
+				{
+					cByte.Add(data[i].ToString());
+				}
 			}
-			catch
+		}
+		double parseByte(List<string> cByte)
+		{
+//			if(!checkSum(cByte)) return;
+			double v1 = double.Parse(cByte[3]);
+			double v2 = double.Parse(cByte[4]);
+			double v = v1*16*16+v2;
+			v = hexToSigned(v);
+			return v;
+		}
+		public void si_DataReceived(byte[] data)
+		{
+			List<double> values = new List<double>();
+			foreach(double v in parseBytes(data))
 			{
+				values.Add(v);
+				myChart.AddPoint(v);
 			}
 			allValues.AddRange(values);
 			
@@ -146,25 +141,17 @@ namespace EcgChart
 		}
 		void initComboPorts()
 		{
-			string[] ports = SerialPort.GetPortNames();
+			string[] ports = ComPort.GetPorts();//SerialPort.GetPortNames();
 			comboBox1.Items.Clear();
 			comboBox1.Items.AddRange(ports);
 			comboBox1.Text = defPort;
 		}
 		SerialPort initPort(string portName)
 		{
+			int baud = 57600;
 			try {
-				SerialPort port = new SerialPort(portName);
-				port.BaudRate = 57600;
-				port.Parity=Parity.None;
-				port.StopBits=StopBits.One;
-				port.DataBits = 8;
-				port.Handshake = Handshake.RequestToSend;
-				port.DtrEnable = true;
-				port.RtsEnable = true;
-				port.WriteTimeout = 20;
-				port.ReadTimeout = 2;
-				port.DataReceived += new SerialDataReceivedEventHandler(sp_DataReceived);
+				SerialPort port = new SerialPort(portName,baud);
+				port.DataReceived += sp_DataReceived;
 				return port;
 			}
 			catch
@@ -185,15 +172,15 @@ namespace EcgChart
 				_sPort.Close(); button1.Text=openButtonText;
 			}
 			_sPort = initPort(comboBox1.Text);
-			
 		}
 		
 		void Button2Click(object sender, EventArgs e)
 		{
 			initAll();
 		}
-		private void initAll()
+		void initAll()
 		{
+			button1.Text=openButtonText;
 			_sPort = initPort(defPort);
 			initComboPorts();
 			listBox1.DataSource=null;	
@@ -202,7 +189,7 @@ namespace EcgChart
 			myChart = new MyChart(defaultGraph);
 		}
 				
-		private PointPairList listToPointPairList(List<double> val)
+		PointPairList listToPointPairList(List<double> val)
 		{
 			PointPairList result = new PointPairList ();
 			int l=val.Count;
@@ -211,65 +198,29 @@ namespace EcgChart
 			}
 			return result;
 		}
-		List<double> LoadListFromFile(string FileName)
-		{
-			List<double> v = new List<double>();
-			StreamReader sr = new StreamReader(FileName);
-			string text;
-				while ((text=sr.ReadLine())!=null)
-				{
-					try 
-					{
-						double tmp=double.Parse(text);
-						v.Add(tmp);
-					}
-					catch
-					{
-						continue;
-					}
-				}
-				sr.Close();
-			return v; 
-		}
+		
 		void fileOpenClick(object sender, EventArgs e)
 		{
-			List<double> v;
-			OpenFileDialog of = new OpenFileDialog();
-			string path = Directory.GetCurrentDirectory();
-			of.InitialDirectory = path ;
-			of.Filter = defaultFilterForFiles;
-			of.RestoreDirectory = true ;
-			
-			if(of.ShowDialog() != DialogResult.OK) return;
-			v = LoadListFromFile(of.FileName);
-				listBox1.DataSource = v;
-				
-				myChart.DrawGraph(v,null,false);
-			
+			string fileName=FileTools.GetOpenFileName();
+			if(fileName==null) return; 
+			List<double>v = FileTools.LoadListFromFile(fileName);
+			listBox1.DataSource = v;
+			myChart.DrawGraph(v,null,false);
 		}
         
         void AddFromFileClick(object sender, EventArgs e)
         {
-			List<double> v;
-			OpenFileDialog of = new OpenFileDialog();
-			string path = Directory.GetCurrentDirectory();
-			of.InitialDirectory = path ;
-			of.Filter = defaultFilterForFiles;
-			of.RestoreDirectory = true ;
-			
-			if(of.ShowDialog() != DialogResult.OK) return;
-			v = LoadListFromFile(of.FileName);
-				listBox1.DataSource = v;
-				myChart.DrawGraph(v,"loaded",true);
+			string fileName=FileTools.GetOpenFileName();
+			if(fileName==null) return; 
+			List<double>v = FileTools.LoadListFromFile(fileName);
+			listBox1.DataSource = v;
+			myChart.DrawGraph(v,"loaded",true);
         }
         
         void SaveFileClick(object sender, EventArgs e)
         {
-		     SaveFileDialog sf = new SaveFileDialog();
-		     sf.Filter = defaultFilterForFiles;
-		     sf.RestoreDirectory = true ;
-		     if(sf.ShowDialog() != DialogResult.OK) return;
-		     log.saveAsData(sf.FileName,allValues);
+        	string fileName=FileTools.GetSaveFileName();
+		    log.saveAsData(fileName,allValues);
         }
 	}
 }

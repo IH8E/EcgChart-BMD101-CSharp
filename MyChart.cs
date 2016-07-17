@@ -1,10 +1,4 @@
-﻿/*
- * Сделано в SharpDevelop.
- * Пользователь: IH8E
- * Дата: 15.07.2016
- * Время: 14:29
- */
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using ZedGraph;
@@ -17,8 +11,9 @@ namespace EcgChart
 	{
 		ZedGraphControl graph;
 		GraphPane pane;
+		const string chartTitle = "ECG";
 		int pointCount;
-		string chartTitle = "ECG";
+		
 		
 		public MyChart(ZedGraphControl g)
 		{
@@ -27,7 +22,7 @@ namespace EcgChart
 			pointCount = 0; 
 			initGraph();
 		}
-		private void initGraph(){
+		void initGraph(){
 			pane.CurveList.Clear();
 			pane.Title.Text = chartTitle;
 			pane.YAxis.Title.IsVisible = false;
@@ -41,21 +36,22 @@ namespace EcgChart
 			graph.IsEnableVZoom = false;
 			graph.IsShowHScrollBar = true;
 			graph.IsAutoScrollRange = true;
-			this.Update();
+			Update();
 		}
 		public void DrawGraph (List<double> val,string label,bool append)
 		{
-			label = (label!=null)?label:"ECG";
+			label = label ?? "ECG";
 			Color color = Color.Blue;
 			
-			if(append==false) pane.CurveList.Clear (); 
+			if(!append) pane.CurveList.Clear (); 
 			else color=Color.Maroon;
 			pointCount = 0;
-			PointPairList list = this.listToPointPairList(val); 
+			PointPairList list = listToPointPairList(val); 
 			LineItem myCurve = pane.AddCurve (label, list, color, SymbolType.None);
-			this.Update();
+			graph.RestoreScale(pane);
+			Update();
 		}
-		private PointPairList listToPointPairList(List<double> val)
+		PointPairList listToPointPairList(List<double> val)
 		{
 			PointPairList result = new PointPairList ();
 			int l=val.Count;
@@ -64,15 +60,15 @@ namespace EcgChart
 			}
 			return result;
 		}
-		private void Update() 
+		void Update() 
 		{
-			this.graph.AxisChange ();
-			this.graph.Invalidate ();
+			graph.AxisChange ();
+			graph.Invalidate ();
 		}
 		public void AddPoint(double val,int curveIndex=0) 
 		{
-			this.pane.CurveList[curveIndex].AddPoint(pointCount++,val);
-			this.Update();
+			pane.CurveList[curveIndex].AddPoint(pointCount++,val);
+			Update();
 		}
 	}
 }
